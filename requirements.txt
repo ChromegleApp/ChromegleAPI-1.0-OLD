@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+aiohttp
+aiofiles
+tensorflow-hub
+pillow
+
+# TENSORFLOW NEEDED FOR AI PROCESSING, SPECIAL VERSION NEEDED FOR LINUX, ELSE USE PIP INSTALL TENSORFLOW
+# FUCKING HELL, MAN. TENSORFLOW WAS A BITCH TO INSTALL! USE BTVER1.
+# https://github.com/yaroslavvb/tensorflow-community-wheels/issues/206
