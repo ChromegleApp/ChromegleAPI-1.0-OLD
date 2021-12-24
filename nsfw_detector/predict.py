@@ -12,7 +12,7 @@ import tensorflow_hub as hub
 IMAGE_DIM = 224   # required/default image dimensionality
 
 
-def load_images(image_paths, image_size, verbose=True):
+def load_images(image_paths, image_size, verbose=False):
     '''
     Function for loading images into numpy arrays for passing to model.predict
     inputs:
