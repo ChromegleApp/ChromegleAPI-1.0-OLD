@@ -82,18 +82,20 @@ class NSFWResponse(AsyncResponse):
 
     async def complete(self) -> NSFWResponse:
 
-        file_name: str = await self.save_image(self.nsfw_payload.base64)
+        image_path: str = await self.save_image(self.nsfw_payload.base64)
 
         # Failed to do it
-        if not file_name:
+        if not image_path:
             self._status, self._message = 400, "The photo you submitted was unable to be read by the system (did you supply an image?)"
             return self
 
-        results: Optional[dict] = self.classify_model(self.MODEL, file_name)
+        results: Optional[dict] = self.classify_model(self.MODEL, image_path)
 
         if not results:
             self._status, self._message = 500, "Failed to classify the requested image due to an error (perhaps an invalid image?)"
+            self.remove_image(image_path)
             return self
 
         self._payload, self._status, self._message = self.is_nsfw(results), 200, "Successfully classified the requested image"
+        self.remove_image(image_path)
         return self

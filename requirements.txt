@@ -4,6 +4,8 @@ aiohttp
 aiofiles
 tensorflow-hub
 Pillow~=8.4.0
+git+git://github.com/long2ice/fastapi-limiter.git
+aioredis
 
 # TENSORFLOW NEEDED FOR AI PROCESSING, SPECIAL VERSION NEEDED FOR LINUX, ELSE USE PIP INSTALL TENSORFLOW
 # TENSORFLOW WAS A BITCH TO INSTALL. USE BTVER1 WHEN INSTALLING.

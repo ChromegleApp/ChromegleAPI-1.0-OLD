@@ -1,15 +1,21 @@
 import os
-from typing import Mapping, List
+from typing import Mapping, List, Optional
 
+import aioredis
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
+from fastapi_limiter import FastAPILimiter
+from fastapi_limiter.depends import RateLimiter
 from starlette.middleware.cors import CORSMiddleware
 
 import config
+from api.site_stats import StatResponse
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 from api.classify_image import NSFWPayload, NSFWResponse
 
+
+# TODO rate limiting
 
 class ChromegleAPI(FastAPI):
 
@@ -26,10 +32,16 @@ class ChromegleAPI(FastAPI):
         extra.update(new)
         return extra
 
-    def __init__(self, **extra: dict):
+    def __init__(self, redis_host: str, redis_port: int, redis_password: str, **extra: dict):
         super().__init__(**self.__set_identity(**extra))
 
+        self.redis: Optional[aioredis.Redis] = None
+        self.redis_host: str = redis_host
+        self.redis_port: int = redis_port
+        self.redis_password: str = redis_password
+
         self.origins: List[str] = ["*"]
+
         self.add_middleware(
             CORSMiddleware,
             allow_origins=self.origins,
@@ -39,10 +51,20 @@ class ChromegleAPI(FastAPI):
         )
 
 
-app = ChromegleAPI()
+app = ChromegleAPI(
+    config.REDIS_HOST,
+    config.REDIS_PORT,
+    config.REDIS_PASSWORD
+)
 
 
-@app.post("/nsfw")
+@app.on_event("startup")
+async def startup():
+    app.redis = aioredis.Redis(host=app.redis_host, port=app.redis_port, password=app.redis_password)
+    await FastAPILimiter.init(app.redis)
+
+
+@app.post("/nsfw", tags=['Chromegle'], dependencies=[Depends(RateLimiter(times=3, seconds=10))])
 async def detect_nsfw_legacy(payload: NSFWPayload):
     response: NSFWResponse = await NSFWResponse(payload).complete()
     json_response: dict = {"status": 0 if response.status != 200 else 1}
@@ -50,9 +72,14 @@ async def detect_nsfw_legacy(payload: NSFWPayload):
     return json_response
 
 
-@app.post("/classify_image")
+@app.post("/omegle/classify_image", tags=['Chromegle'], dependencies=[Depends(RateLimiter(times=3, seconds=10))])
 async def detect_nsfw(payload: NSFWPayload):
     return (await NSFWResponse(payload).complete()).serialize()
+
+
+@app.get("/omegle/stats", tags=['Omegle'], dependencies=[Depends(RateLimiter(times=3, hours=2))])
+async def retrieve_omegle_stats():
+    return (await StatResponse().complete()).serialize()
 
 
 if __name__ == "__main__":
