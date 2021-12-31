@@ -77,7 +77,8 @@ async def detect_nsfw(payload: NSFWPayload):
     return (await NSFWResponse(payload).complete()).serialize()
 
 
-@app.get("/omegle/stats", tags=['Omegle'], dependencies=[Depends(RateLimiter(times=3, hours=2))])
+# TODO remember to return rate limit when done
+@app.get("/omegle/stats", tags=['Omegle'], dependencies=[Depends(RateLimiter(times=3, seconds=2))])
 async def retrieve_omegle_stats():
     return (await StatResponse().complete()).serialize()
 
