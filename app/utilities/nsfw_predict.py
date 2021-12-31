@@ -5,26 +5,25 @@ from os.path import isfile, join, exists, isdir, abspath
 
 import numpy as np
 import tensorflow as tf
-from tensorflow import keras
 import tensorflow_hub as hub
+from tensorflow import keras
 
-
-IMAGE_DIM = 224   # required/default image dimensionality
+IMAGE_DIM = 224  # required/default image dimensionality
 
 
 def load_images(image_paths, image_size, verbose=False):
-    '''
-    Function for loading images into numpy arrays for passing to model.predict
+    """
+    Function for loading nsfw_images into numpy arrays for passing to model.predict
     inputs:
         image_paths: list of image paths to load
-        image_size: size into which images should be resized
+        image_size: size into which nsfw_images should be resized
         verbose: show all of the image path and sizes loaded
 
     outputs:
-        loaded_images: loaded images on which keras model can run predictions
-        loaded_image_indexes: paths of images which the function is able to process
+        loaded_images: loaded nsfw_images on which keras model can run predictions
+        loaded_image_indexes: paths of nsfw_images which the function is able to process
 
-    '''
+    """
     loaded_images = []
     loaded_image_paths = []
 
@@ -57,7 +56,7 @@ def load_model(model_path):
             "saved_model_path must be the valid directory of a saved model to load.")
 
     model = tf.keras.models.load_model(model_path, custom_objects={
-                                       'KerasLayer': hub.KerasLayer})
+        'KerasLayer': hub.KerasLayer})
     return model
 
 
@@ -86,17 +85,18 @@ def classify_nd(model, nd_images):
 
 
 def main(args=None):
+    # noinspection PyTypeChecker
     parser = argparse.ArgumentParser(
-        description="""A script to perform NFSW classification of images""",
+        description="""A script to perform NFSW classification of nsfw_images""",
         epilog="""
         Launch with default model and a test image
-            python nsfw_detector/predict.py --saved_model_path mobilenet_v2_140_224 --image_source test.jpg
+            python nsfw_detector/nsfw_predict.py --saved_model_path mobilenet_v2_140_224 --image_source test.jpg
     """, formatter_class=argparse.RawTextHelpFormatter)
 
     submain = parser.add_argument_group(
         'main execution and evaluation functionality')
     submain.add_argument('--image_source', dest='image_source', type=str, required=True,
-                         help='A directory of images or a single image to classify')
+                         help='A directory of nsfw_images or a single image to classify')
     submain.add_argument('--saved_model_path', dest='saved_model_path', type=str, required=True,
                          help='The model to load')
     submain.add_argument('--image_dim', dest='image_dim', type=int, default=IMAGE_DIM,
@@ -108,12 +108,8 @@ def main(args=None):
 
     if config['image_source'] is None or not exists(config['image_source']):
         raise ValueError(
-            "image_source must be a valid directory with images or a single image to classify.")
+            "image_source must be a valid directory with nsfw_images or a single image to classify.")
 
     model = load_model(config['saved_model_path'])
     image_preds = classify(model, config['image_source'], config['image_dim'])
     print(json.dumps(image_preds, indent=2), '\n')
-
-
-if __name__ == "__main__":
-    main()
