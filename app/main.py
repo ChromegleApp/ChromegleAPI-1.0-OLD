@@ -79,7 +79,7 @@ async def detect_nsfw(payload: NSFWPayload):
     return (await NSFWResponse(payload).complete()).serialize()
 
 
-@app.post("/omegle/geolocate", tags=['Chromegle'], dependencies=[Depends(RateLimiter(times=1, seconds=1))])
+@app.get("/omegle/geolocate", tags=['Chromegle'], dependencies=[Depends(RateLimiter(times=1, seconds=1))])
 async def geolocate_ip(address: str):
     return (await GeolocateResponse(address, app.redis).complete()).serialize()
 
