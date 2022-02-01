@@ -74,7 +74,7 @@ async def detect_nsfw_legacy(payload: NSFWPayload):
     return json_response
 
 
-@app.post("/omegle/classify_image", tags=['Chromegle'], dependencies=[Depends(RateLimiter(times=3, seconds=10))])
+@app.post("/omegle/classify_image", tags=['Chromegle'], dependencies=[Depends(RateLimiter(times=3, seconds=2))])
 async def detect_nsfw(payload: NSFWPayload):
     return (await NSFWResponse(payload).complete()).serialize()
 
