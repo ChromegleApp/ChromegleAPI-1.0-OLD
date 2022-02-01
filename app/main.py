@@ -9,6 +9,7 @@ from fastapi_limiter.depends import RateLimiter
 from starlette.middleware.cors import CORSMiddleware
 
 import config
+from api.geolocate import GeolocateResponse
 from api.site_stats import StatResponse
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
@@ -58,6 +59,7 @@ app = ChromegleAPI(
 )
 
 
+
 @app.on_event("startup")
 async def startup():
     app.redis = aioredis.Redis(host=app.redis_host, port=app.redis_port, password=app.redis_password)
@@ -75,6 +77,11 @@ async def detect_nsfw_legacy(payload: NSFWPayload):
 @app.post("/omegle/classify_image", tags=['Chromegle'], dependencies=[Depends(RateLimiter(times=3, seconds=10))])
 async def detect_nsfw(payload: NSFWPayload):
     return (await NSFWResponse(payload).complete()).serialize()
+
+
+@app.post("/omegle/geolocate", tags=['Chromegle'], dependencies=[Depends(RateLimiter(times=1, seconds=1))])
+async def geolocate_ip(address: str):
+    return (await GeolocateResponse(address, app.redis).complete()).serialize()
 
 
 # TODO remember to return rate limit when done
