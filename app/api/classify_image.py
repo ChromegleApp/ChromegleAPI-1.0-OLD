@@ -21,6 +21,7 @@ class NSFWResponse(AsyncResponse):
 
     def __init__(self, nsfw_payload: NSFWPayload):
         super().__init__()
+        print(nsfw_payload)
         self.nsfw_payload: NSFWPayload = nsfw_payload
 
     @classmethod
