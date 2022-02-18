@@ -14,9 +14,10 @@ from starlette.middleware.cors import CORSMiddleware
 from starlette.requests import Request
 
 import config
-from api.classify_image import NSFWPayload, NSFWResponse
+from api.classify_image import NSFWResponse, NSFWPayload
 from api.geolocate import GeolocateResponse
 from api.omeglestats import StatResponse
+from api.statsimage import StatsImageResponse
 from models.mysql import create_template
 from models.response import FilledResponse
 from utilities.statistics.statistics import log_statistics, get_statistics
@@ -109,9 +110,11 @@ async def post_chromegle_stats(action: str, request: Request):
     return FilledResponse(status=200, message="Received Statistics").serialize()
 
 
-@app.get("/chromegle/stats", tags=['Chromegle'], dependencies=[Depends(RateLimiter(times=5, seconds=1))])
+@app.get("/chromegle/stats", tags=['Chromegle'], dependencies=[Depends(RateLimiter(times=3, seconds=1))])
 async def get_chromegle_stats():
     stats: dict = await get_statistics(sql_pool=app.sql_pool, redis=app.redis)
+    image: str = str((await StatsImageResponse(stats, app.redis).complete()).payload)
+    stats["image"] = image
 
     return FilledResponse(
         status=200,

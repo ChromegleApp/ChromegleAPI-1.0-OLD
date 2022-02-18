@@ -22,18 +22,14 @@ class StatResponse(AsyncResponse):
 
     @classmethod
     async def request_data(cls) -> Union[str, dict]:
-
         async with aiohttp.ClientSession() as session:
-
             async with session.get(cls.__generate_request_url()) as request:
-
                 try:
                     return await request.json()
                 except:
                     return await request.text()
 
     async def complete(self) -> StatResponse:
-
         response: dict = await self.request_data()
 
         if not response or type(response) != dict:
@@ -47,7 +43,7 @@ class StatResponse(AsyncResponse):
         response.pop("timestamp", None)
 
         # Add New Data
-        response["servercount"] = len(response.get("servers", []))
+        response["servercount"] = len(response.get("online_count", []))
         response["antinudeservercount"] = len(response.get("antinudeservers", []))
 
         self._payload, self._status, self._message = response, 200, "Successfully retrieved Omegle's website stats"
