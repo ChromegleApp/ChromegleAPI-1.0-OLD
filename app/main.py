@@ -14,10 +14,11 @@ from starlette.middleware.cors import CORSMiddleware
 from starlette.requests import Request
 
 import config
+from api.classify_image import NSFWPayload, NSFWResponse
 from api.geolocate import GeolocateResponse
 from api.omeglestats import StatResponse
 from models.mysql import create_template
-from models.response import FilledResponse, StatsPayload
+from models.response import FilledResponse
 from utilities.statistics.statistics import log_statistics, get_statistics
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
@@ -94,7 +95,7 @@ async def startup():
 
 
 @app.post("/chromegle/stats", tags=['Chromegle'], dependencies=[Depends(RateLimiter(times=3, seconds=2))])
-async def post_chromegle_stats(payload: StatsPayload, request: Request):
+async def post_chromegle_stats(action: str, request: Request):
     """
 
     NGINX REQUIREMENTS
@@ -104,16 +105,12 @@ async def post_chromegle_stats(payload: StatsPayload, request: Request):
     proxy_set_header   X-Forwarded-For  $proxy_add_x_forwarded_for;
 
     """
-
-    if not payload.action or not payload.signature or (hashlib.sha1(str(request.client.host).encode("utf-8")).hexdigest() != payload.signature):
-        return FilledResponse(status=400, message="Unauthorized Request").serialize()
-
-    await log_statistics(signature=payload.signature, action=payload.action, sql_pool=app.sql_pool)
+    await log_statistics(signature=hashlib.sha1(str(request.client.host).encode("utf-8")).hexdigest(), action=action, sql_pool=app.sql_pool)
     return FilledResponse(status=200, message="Received Statistics").serialize()
 
 
 @app.get("/chromegle/stats", tags=['Chromegle'], dependencies=[Depends(RateLimiter(times=5, seconds=1))])
-async def get_chromegle_stats(request: Request):
+async def get_chromegle_stats():
     stats: dict = await get_statistics(sql_pool=app.sql_pool, redis=app.redis)
 
     return FilledResponse(
@@ -123,11 +120,9 @@ async def get_chromegle_stats(request: Request):
     ).serialize()
 
 
-"""
 @app.post("/omegle/classify_image", tags=['Omegle'], dependencies=[Depends(RateLimiter(times=3, seconds=2))])
 async def detect_nsfw(payload: NSFWPayload):
     return (await NSFWResponse(payload).complete()).serialize()
-"""
 
 
 @app.get("/omegle/geolocate/{address}", tags=['Omegle'], dependencies=[Depends(RateLimiter(times=1, seconds=1))])
