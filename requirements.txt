@@ -1,12 +1,17 @@
-fastapi
-uvicorn
-aiohttp
-aiofiles
+fastapi~=0.73.0
+uvicorn~=0.17.1
+aiohttp~=3.8.1
+aiofiles~=0.8.0
 tensorflow-hub
 Pillow~=8.4.0
 git+git://github.com/long2ice/fastapi-limiter.git
-aioredis
+aioredis~=2.0.1
 
 # TENSORFLOW NEEDED FOR AI PROCESSING, SPECIAL VERSION NEEDED FOR LINUX, ELSE USE PIP INSTALL TENSORFLOW
 # TENSORFLOW WAS A BITCH TO INSTALL. USE BTVER1 WHEN INSTALLING.
 # https://github.com/yaroslavvb/tensorflow-community-wheels/issues/206
+pydantic~=1.9.0
+aiomysql~=0.0.22
+starlette~=0.17.1
+numpy~=1.22.1
+tensorflow~=2.8.0

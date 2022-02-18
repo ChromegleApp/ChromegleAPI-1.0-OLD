@@ -3,6 +3,8 @@ from __future__ import annotations
 from abc import ABCMeta, abstractmethod, ABC
 from typing import Any
 
+from pydantic.main import BaseModel
+
 
 class APIResponse:
     __metaclass__ = ABCMeta
@@ -59,3 +61,9 @@ class SyncResponse(FilledResponse, ABC):
     @abstractmethod
     def complete(self) -> SyncResponse:
         raise NotImplementedError
+
+
+class StatsPayload(BaseModel):
+    signature: str
+    action: str
+

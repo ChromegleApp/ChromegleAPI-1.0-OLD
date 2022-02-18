@@ -17,52 +17,42 @@ class NSFWPayload(BaseModel):
 
 
 class NSFWResponse(AsyncResponse):
-    MODEL = nsfw_predict.load_model('resources/nsfw_model.h5')
+    MODEL = nsfw_predict.load_model('./resources/nsfw_model.h5')
 
     def __init__(self, nsfw_payload: NSFWPayload):
         super().__init__()
-        print(nsfw_payload)
         self.nsfw_payload: NSFWPayload = nsfw_payload
 
     @classmethod
     async def save_image(cls, payload: bytes, file_name: str = f"./resources/nsfw_images/{uuid.uuid4()}.jpg") -> Optional[str]:
-
         try:
-
             async with aiofiles.open(file_name, mode="wb") as file:
                 await file.write(base64.decodebytes(payload))
                 await file.close()
 
         except:
-
             return None
 
         return file_name
 
     @classmethod
     def classify_model(cls, model, image_path):
-
         results: Optional[dict] = None
 
         try:
-
             results = nsfw_predict.classify(model, image_path)
 
         except:
-
             pass
 
         return results
 
     @classmethod
     def remove_image(cls, image_path):
-
         try:
-
             os.remove(image_path)
 
         except:
-
             pass
 
     @classmethod
@@ -82,7 +72,6 @@ class NSFWResponse(AsyncResponse):
         return results
 
     async def complete(self) -> NSFWResponse:
-
         image_path: str = await self.save_image(self.nsfw_payload.base64)
 
         # Failed to do it
