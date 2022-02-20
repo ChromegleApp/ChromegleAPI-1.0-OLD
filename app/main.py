@@ -20,6 +20,7 @@ from api.omeglestats import StatResponse
 from api.statsimage import StatsImageResponse
 from models.mysql import create_template
 from models.response import FilledResponse
+from utilities.misc import get_address
 from utilities.statistics.statistics import log_statistics, get_statistics
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
@@ -95,26 +96,18 @@ async def startup():
     await FastAPILimiter.init(app.redis)
 
 
-@app.post("/chromegle/stats", tags=['Chromegle'], dependencies=[Depends(RateLimiter(times=3, seconds=2))])
+@app.post("/chromegle/stats", tags=['Chromegle'], dependencies=[Depends(RateLimiter(times=50, seconds=10))])
 async def post_chromegle_stats(action: str, request: Request):
-    """
-
-    NGINX REQUIREMENTS
-
-    REQUIRES --proxy-headers flag
-    proxy_set_header   X-Real-IP        $remote_addr;
-    proxy_set_header   X-Forwarded-For  $proxy_add_x_forwarded_for;
-
-    """
-    await log_statistics(signature=hashlib.sha1(str(request.client.host).encode("utf-8")).hexdigest(), action=action, sql_pool=app.sql_pool)
+    await log_statistics(signature=hashlib.sha1(str(get_address(request)).encode("utf-8")).hexdigest(), action=action, sql_pool=app.sql_pool)
     return FilledResponse(status=200, message="Received Statistics").serialize()
 
 
-@app.get("/chromegle/stats", tags=['Chromegle'], dependencies=[Depends(RateLimiter(times=3, seconds=1))])
-async def get_chromegle_stats():
+@app.get("/chromegle/stats", tags=['Chromegle'], dependencies=[Depends(RateLimiter(times=3, seconds=2))])
+async def get_chromegle_stats(request: Request):
     stats: dict = await get_statistics(sql_pool=app.sql_pool, redis=app.redis)
     image: str = str((await StatsImageResponse(stats, app.redis).complete()).payload)
     stats["image"] = image
+    stats["address"] = get_address(request)
 
     return FilledResponse(
         status=200,
@@ -139,4 +132,4 @@ async def retrieve_omegle_stats():
 
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=config.PORT, log_level="info")
+    uvicorn.run("main:app", host="0.0.0.0", port=config.PORT, log_level="info", proxy_headers=True)

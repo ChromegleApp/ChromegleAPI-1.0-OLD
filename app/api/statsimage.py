@@ -25,7 +25,7 @@ class DynamicStatsImage:
     LARGE_FONT_HEIGHT = LARGE_FONT.size
 
     def __init__(self, online_count: str):
-        self.online_count: str = "500+"
+        self.online_count: str = online_count
 
     def generate(self) -> Image:
         IMAGE_WIDTH, IMAGE_HEIGHT = 150, 57
@@ -60,13 +60,13 @@ class StatsImageResponse(AsyncResponse):
 
     async def get_image(self) -> str:
         # Get from Redis Cache if available
-        image = await self.redis.get("chromegle:stats:png-image")
+        image = await self.redis.get("chromegle:stats:statistics-image")
         if image is not None:
             return image.decode("utf-8")
 
         # Get and enter into Redis Cache
         image = await self.__generate_image()
-        await self.redis.set("chromegle:stats:png-image", image, ex=config.Statistics.STATS_IMAGE_EXPIREY)
+        await self.redis.set("chromegle:stats:statistics-image", image, ex=config.Statistics.STATS_IMAGE_EXPIREY)
 
     async def complete(self) -> StatsImageResponse:
         self._payload, self._status, self._message = await self.get_image(), 200, "Successfully retrieved Omegle's website stats as an image"
