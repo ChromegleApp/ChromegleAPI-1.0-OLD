@@ -1,5 +1,4 @@
 import asyncio
-import hashlib
 import os
 from asyncio import AbstractEventLoop
 from typing import Mapping, List, Optional
@@ -100,7 +99,7 @@ async def startup():
 
 @app.post("/chromegle/stats", tags=['Chromegle'], dependencies=[Depends(RateLimiter(times=50, seconds=10))])
 async def post_chromegle_stats(action: str, request: Request):
-    await log_statistics(signature=hashlib.sha1(str(get_address(request)).encode("utf-8")).hexdigest(), action=action, sql_pool=app.sql_pool)
+    await log_statistics(signature=get_address(request), action=action, sql_pool=app.sql_pool)
     return FilledResponse(status=200, message="Received Statistics").serialize()
 
 
