@@ -82,6 +82,8 @@ app: ChromegleAPI = ChromegleAPI(
 
 @app.on_event("startup")
 async def startup():
+    print("Go for launch!")
+
     # Create SQL Pool
     app.sql_pool = await aiomysql.create_pool(
         host=config.MariaDB.HOST, port=config.MariaDB.PORT,
@@ -108,7 +110,7 @@ async def get_chromegle_stats(request: Request):
     stats: dict = await get_statistics(sql_pool=app.sql_pool, redis=app.redis)
     image: str = str((await StatsImageResponse(stats, app.redis).complete()).payload)
     stats["image"] = image
-    stats["address"] = get_address(request)
+    stats["address"] = get_address(request, hashed=False)
 
     return FilledResponse(
         status=200,
