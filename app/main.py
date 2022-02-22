@@ -12,6 +12,7 @@ from fastapi_limiter import FastAPILimiter
 from fastapi_limiter.depends import RateLimiter
 from starlette.middleware.cors import CORSMiddleware
 from starlette.requests import Request
+from starlette.responses import Response
 
 import config
 from api.classify_image import NSFWResponse, NSFWPayload
@@ -21,6 +22,7 @@ from api.statsimage import StatsImageResponse
 from models.mysql import create_template
 from models.response import FilledResponse
 from utilities.misc import get_address
+from utilities.statistics.geo_auth import authorized
 from utilities.statistics.statistics import log_statistics, get_statistics
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
@@ -102,7 +104,7 @@ async def post_chromegle_stats(action: str, request: Request):
     return FilledResponse(status=200, message="Received Statistics").serialize()
 
 
-@app.get("/chromegle/stats", tags=['Chromegle'], dependencies=[Depends(RateLimiter(times=3, seconds=2))])
+@app.get("/chromegle/stats", tags=['Chromegle'])
 async def get_chromegle_stats(request: Request):
     stats: dict = await get_statistics(sql_pool=app.sql_pool, redis=app.redis)
     image: str = str((await StatsImageResponse(stats, app.redis).complete()).payload)
@@ -121,8 +123,11 @@ async def detect_nsfw(payload: NSFWPayload):
     return (await NSFWResponse(payload).complete()).serialize()
 
 
-@app.get("/omegle/geolocate/{address}", tags=['Omegle'], dependencies=[Depends(RateLimiter(times=1, seconds=1))])
-async def geolocate_ip(address: str):
+@app.get("/omegle/geolocate/{address}", tags=['Omegle'], dependencies=[Depends(RateLimiter(times=1, seconds=1))], include_in_schema=False)
+async def geolocate_ip(address: str, request: Request):
+    if not await authorized(request, app.sql_pool):
+        return Response(status_code=403)
+
     return (await GeolocateResponse(address, app.redis).complete()).serialize()
 
 
