@@ -107,7 +107,7 @@ async def post_chromegle_stats(action: str, request: Request):
 
 @app.get("/chromegle/stats", tags=['Chromegle'])
 async def get_chromegle_stats(request: Request):
-    stats: dict = await get_statistics(sql_pool=app.sql_pool, redis=app.redis)
+    stats: dict = await get_statistics(sql_pool=app.sql_pool, redis=app.redis, use_redis=True)
     image: str = str((await StatsImageResponse(stats, app.redis).complete()).payload)
     stats["image"] = image
     stats["address"] = get_address(request, hashed=False)

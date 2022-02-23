@@ -1,6 +1,7 @@
+import datetime
 import json
 import logging
-from typing import Optional, Tuple
+from typing import Optional
 
 import aiomysql
 import aioredis
@@ -9,8 +10,11 @@ import config
 from utilities.statistics.statistics_sql import StatisticSQL
 
 
-async def get_statistics(sql_pool: aiomysql.Pool, redis: aioredis.Redis):
-    stats: Optional[bytes] = await redis.get("chromegle:statistics")
+async def get_statistics(sql_pool: aiomysql.Pool, redis: aioredis.Redis, use_redis: bool = True):
+    stats: Optional[bytes] = None
+
+    if use_redis:
+        stats = await redis.get("chromegle:statistics")
 
     # Not cached (refresh every 120s)
     if stats is None:
@@ -23,32 +27,34 @@ async def get_statistics(sql_pool: aiomysql.Pool, redis: aioredis.Redis):
 
 
 async def _retrieve_statistics(sql_pool: aiomysql.Pool):
+    _today = datetime.datetime.today().strftime('%Y%m%d')
+    _week_ago = (datetime.datetime.today() - datetime.timedelta(days=7)).strftime('%Y%m%d')
     sql: StatisticSQL = StatisticSQL(sql_pool)
 
     # Recent Statistics
-    recent_omegle_open_entries: Tuple = await sql.get_statistic(config.Statistics.OMEGLE_OPENED_TABLE, 10)
-    recent_chat_start_entries: Tuple = await sql.get_statistic(config.Statistics.CHAT_START_TABLE, 10)
-    recent_chat_end_entries: Tuple = await sql.get_statistic(config.Statistics.CHAT_END_TABLE, 10)
+    rec_open_entries = await sql.get_recent_activity(config.Statistics.OMEGLE_OPENED_TABLE, 10)
+    rec_start_entries = await sql.get_recent_activity(config.Statistics.CHAT_START_TABLE, 10)
+    rec_end_entries = await sql.get_recent_activity(config.Statistics.CHAT_END_TABLE, 10)
 
-    # All-Time Statistics
-    counts: Tuple = await sql.get_counts(
-        config.Statistics.OMEGLE_OPENED_TABLE,
-        config.Statistics.CHAT_START_TABLE,
-        config.Statistics.CHAT_END_TABLE
+    # Since 12:00AM
+    today = await sql.get_tracking_count_between_dates(
+        config.Statistics.OMEGLE_OPENED_TABLE, config.Statistics.CHAT_START_TABLE, config.Statistics.CHAT_END_TABLE, start=_today, end=_today,
     )
 
+    # Within 1 Week of 12:00
+    week = await sql.get_tracking_count_between_dates(
+        config.Statistics.OMEGLE_OPENED_TABLE, config.Statistics.CHAT_START_TABLE, config.Statistics.CHAT_END_TABLE, start=_week_ago, end=_today,
+    )
+
+    # All-Time Statistics (chat_started, chat_ended, omegle_opened)
+    all_time = await sql.get_tracking_count(config.Statistics.OMEGLE_OPENED_TABLE, config.Statistics.CHAT_START_TABLE, config.Statistics.CHAT_END_TABLE)
+
     return {
-        "online_users": len(set(recent_omegle_open_entries + recent_chat_end_entries + recent_chat_start_entries)),
-        "within_ten_minutes": {
-            "chats_started": len(recent_chat_start_entries),
-            "chats_ended": len(recent_chat_end_entries),
-            "times_opened": len(recent_omegle_open_entries)
-        },
-        "all_time": {
-            "times_opened": counts[0],
-            "chats_started": counts[2],
-            "chats_ended": counts[1]
-        }
+        "online_users": len(set(rec_open_entries + rec_end_entries + rec_start_entries)),
+        "ten_minutes": {"chats_started": len(rec_start_entries), "chats_ended": len(rec_end_entries), "times_opened": len(rec_open_entries)},
+        "today": {"times_opened": today[0], "chats_started": today[2], "chats_ended": today[1]},
+        "week": {"times_opened": week[0], "chats_started": week[2], "chats_ended": week[1]},
+        "forever": {"times_opened": all_time[0], "chats_started": all_time[2], "chats_ended": all_time[1]}
     }
 
 
@@ -71,4 +77,5 @@ async def log_statistics(signature: str, action: str, sql_pool: aiomysql.Pool):
         logging.error(f"Failed to retrieve user account for {signature} :(")
         return
 
-    await sql.insert_statistic(account_id, table_name)
+    await sql.insert_update_statistic(account_id=account_id, table_name=table_name)
+    await sql.insert_update_tracking(stat_name=table_name)
