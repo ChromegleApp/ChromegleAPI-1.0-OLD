@@ -8,25 +8,10 @@ from models.mysql import SQLEntryPoint, StatementEnum
 
 # noinspection SqlNoDataSourceInspection
 class StatisticStatements(StatementEnum):
-    GET_INTERNAL_ID: str = (
-        """
-        SELECT id 
-        FROM registry 
-        WHERE address='%s';
-        """
-    )
-
-    CREATE_INTERNAL_ID: str = (
-        """
-        INSERT INTO registry (address) 
-        VALUES ('%s')
-        """
-    )
-
     INSERT_UPDATE_STATISTIC: str = (
         """
         INSERT INTO user_tracking (address) 
-        VALUES(%s) 
+        VALUES('%s') 
         ON DUPLICATE KEY 
         UPDATE %s=CURRENT_TIMESTAMP()
         """
