@@ -25,10 +25,10 @@ class StatisticStatements(StatementEnum):
 
     INSERT_UPDATE_STATISTIC: str = (
         """
-        INSERT INTO %s (id) 
+        INSERT INTO user_tracking (address) 
         VALUES(%s) 
         ON DUPLICATE KEY 
-        UPDATE last_active=CURRENT_TIMESTAMP()
+        UPDATE %s=CURRENT_TIMESTAMP()
         """
     )
 
@@ -43,9 +43,9 @@ class StatisticStatements(StatementEnum):
 
     GET_RECENT_STAT: str = (
         """
-        SELECT id
-        FROM %s 
-        WHERE last_active >= TIMESTAMP(date_sub(now(), INTERVAL %s MINUTE))
+        SELECT address
+        FROM user_tracking
+        WHERE %s >= TIMESTAMP(date_sub(now(), INTERVAL %s MINUTE))
         """
     )
 
@@ -83,28 +83,12 @@ class StatisticSQL:
         self.connection: Optional[Connection] = None
         self.cursor: Optional[Cursor] = None
 
-    async def __get_account(self, address: str):
-        """
-        Get the database account for a given address
-
-        """
-        await self.cursor.execute(StatisticStatements.GET_INTERNAL_ID % address)
-        result = await self.cursor.fetchone()
-        return result[0] if result is not None else None
-
-    async def __create_account(self, address: str):
-        """
-        Create the database account for a given address
-
-        """
-        await self.cursor.execute(StatisticStatements.CREATE_INTERNAL_ID % address)
-
     @SQLEntryPoint
-    async def get_recent_activity(self, table_name: str, within_minutes: int):
+    async def get_recent_activity(self, field_name: str, within_minutes: int):
         """
         Get a statistic from one of the timestamp tables
         """
-        await self.cursor.execute(StatisticStatements.GET_RECENT_STAT % (table_name, min(within_minutes, within_minutes)))
+        await self.cursor.execute(StatisticStatements.GET_RECENT_STAT % (field_name, min(within_minutes, within_minutes)))
         return await self.cursor.fetchall()
 
     @SQLEntryPoint
@@ -120,28 +104,12 @@ class StatisticSQL:
         return await self.cursor.fetchone()
 
     @SQLEntryPoint
-    async def get_account(self, address: str):
-        """
-        Get an account from an address
-
-        """
-
-        account_id: Optional[int] = await self.__get_account(address)
-
-        # Did not exist
-        if account_id is None:
-            await self.__create_account(address)
-            account_id: Optional[int] = await self.__get_account(address)
-
-        return account_id
-
-    @SQLEntryPoint
-    async def insert_update_statistic(self, account_id: int, table_name: str):
+    async def insert_update_statistic(self, signature: str, field_name: str):
         """
         Insert a statistic into the database
 
         """
-        await self.cursor.execute(StatisticStatements.INSERT_UPDATE_STATISTIC % (table_name, account_id))
+        await self.cursor.execute(StatisticStatements.INSERT_UPDATE_STATISTIC % (signature, field_name))
 
     @SQLEntryPoint
     async def insert_update_tracking(self, stat_name: str):

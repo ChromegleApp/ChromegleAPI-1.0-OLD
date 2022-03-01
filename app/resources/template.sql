@@ -3,10 +3,14 @@
 /*
  Hashed IP Address Registry
  */
-CREATE TABLE IF NOT EXISTS registry
+CREATE TABLE IF NOT EXISTS user_tracking
 (
-    id      int  NOT NULL PRIMARY KEY AUTO_INCREMENT,
-    address TEXT NOT NULL
+    address       VARCHAR(48) NOT NULL PRIMARY KEY,
+
+    chat_started  TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    chat_ended    TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    omegle_opened TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+
 );
 
 /*
@@ -20,31 +24,4 @@ CREATE TABLE IF NOT EXISTS stat_tracking
     chat_ended    INT,
     omegle_opened INT
 
-);
-
-/*
- Chat-Start Tracking
- */
-CREATE TABLE IF NOT EXISTS chat_started
-(
-    id          int       NOT NULL PRIMARY KEY,
-    last_active TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);
-
-/*
- Chat-End Tracking
- */
-CREATE TABLE IF NOT EXISTS chat_ended
-(
-    id          int       NOT NULL PRIMARY KEY,
-    last_active TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);
-
-/*
- Omegle-Opened Tracking
- */
-CREATE TABLE IF NOT EXISTS omegle_opened
-(
-    id          int       NOT NULL PRIMARY KEY,
-    last_active TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );

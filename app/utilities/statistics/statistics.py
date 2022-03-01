@@ -1,6 +1,5 @@
 import datetime
 import json
-import logging
 from typing import Optional
 
 import aiomysql
@@ -32,22 +31,22 @@ async def _retrieve_statistics(sql_pool: aiomysql.Pool):
     sql: StatisticSQL = StatisticSQL(sql_pool)
 
     # Recent Statistics
-    rec_open_entries = await sql.get_recent_activity(config.Statistics.OMEGLE_OPENED_TABLE, 10)
-    rec_start_entries = await sql.get_recent_activity(config.Statistics.CHAT_START_TABLE, 10)
-    rec_end_entries = await sql.get_recent_activity(config.Statistics.CHAT_END_TABLE, 10)
+    rec_open_entries = await sql.get_recent_activity(config.Statistics.OMEGLE_OPEN_FIELD, 10)
+    rec_end_entries = await sql.get_recent_activity(config.Statistics.CHAT_END_FIELD, 10)
+    rec_start_entries = await sql.get_recent_activity(config.Statistics.CHAT_START_FIELD, 10)
 
     # Since 12:00AM
     today = await sql.get_tracking_count_between_dates(
-        config.Statistics.OMEGLE_OPENED_TABLE, config.Statistics.CHAT_START_TABLE, config.Statistics.CHAT_END_TABLE, start=_today, end=_today,
+        config.Statistics.OMEGLE_OPEN_FIELD, config.Statistics.CHAT_START_FIELD, config.Statistics.CHAT_END_FIELD, start=_today, end=_today,
     )
 
     # Within 1 Week of 12:00
     week = await sql.get_tracking_count_between_dates(
-        config.Statistics.OMEGLE_OPENED_TABLE, config.Statistics.CHAT_START_TABLE, config.Statistics.CHAT_END_TABLE, start=_week_ago, end=_today,
+        config.Statistics.OMEGLE_OPEN_FIELD, config.Statistics.CHAT_START_FIELD, config.Statistics.CHAT_END_FIELD, start=_week_ago, end=_today,
     )
 
     # All-Time Statistics (chat_started, chat_ended, omegle_opened)
-    all_time = await sql.get_tracking_count(config.Statistics.OMEGLE_OPENED_TABLE, config.Statistics.CHAT_START_TABLE, config.Statistics.CHAT_END_TABLE)
+    all_time = await sql.get_tracking_count(config.Statistics.OMEGLE_OPEN_FIELD, config.Statistics.CHAT_START_FIELD, config.Statistics.CHAT_END_FIELD)
 
     return {
         "online_users": len(set(rec_open_entries + rec_end_entries + rec_start_entries)),
@@ -58,24 +57,23 @@ async def _retrieve_statistics(sql_pool: aiomysql.Pool):
     }
 
 
-async def log_statistics(signature: str, action: str, sql_pool: aiomysql.Pool):
-    table_name: str = {
-        "chatStarted": config.Statistics.CHAT_START_TABLE,
-        "chatEnded": config.Statistics.CHAT_END_TABLE,
-        "omegleOpened": config.Statistics.OMEGLE_OPENED_TABLE
+async def log_statistics(signature: str, action: str, sql_pool: aiomysql.Pool) -> bool:
+    """
+    Log statistics
+
+    """
+
+    field_name: str = {
+        "chatStarted": config.Statistics.CHAT_START_FIELD,
+        "chatEnded": config.Statistics.CHAT_END_FIELD,
+        "omegleOpened": config.Statistics.OMEGLE_OPEN_FIELD
     }.get(action)
 
     # Invalid action
-    if not table_name:
-        return
+    if not field_name:
+        return False
 
     sql: StatisticSQL = StatisticSQL(sql_pool)
 
-    # Get account
-    account_id: Optional[int] = await sql.get_account(signature)
-    if account_id is None:
-        logging.error(f"Failed to retrieve user account for {signature} :(")
-        return
-
-    await sql.insert_update_statistic(account_id=account_id, table_name=table_name)
-    await sql.insert_update_tracking(stat_name=table_name)
+    await sql.insert_update_statistic(signature=signature, field_name=field_name)
+    await sql.insert_update_tracking(stat_name=field_name)
