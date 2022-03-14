@@ -22,7 +22,7 @@ from models.mysql import create_template
 from models.response import FilledResponse
 from utilities.misc import get_address
 from utilities.statistics.geo_auth import authorized
-from utilities.statistics.statistics import log_statistics, get_statistics
+from utilities.statistics.statistics import log_statistics, get_statistics, get_chrome_statistics
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
@@ -109,12 +109,24 @@ async def post_chromegle_stats(action: str, request: Request):
 async def get_chromegle_stats(request: Request):
     stats: dict = await get_statistics(sql_pool=app.sql_pool, redis=app.redis, use_redis=True)
     image: str = str((await StatsImageResponse(stats, app.redis).complete()).payload)
+
     stats["image"] = image
     stats["address"] = get_address(request, hashed=False)
 
     return FilledResponse(
         status=200,
         message="Successfully retrieved statistics",
+        payload=stats
+    ).serialize()
+
+
+@app.get("/chromegle/chrome/stats", tags=['Chromegle'])
+async def get_chromegle_chrome_webstore_stats():
+    stats: dict = await get_chrome_statistics(redis=app.redis, use_redis=True)
+
+    return FilledResponse(
+        status=200,
+        message="Successfully retrieved web-store statistics",
         payload=stats
     ).serialize()
 

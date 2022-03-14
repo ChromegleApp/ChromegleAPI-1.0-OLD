@@ -1,7 +1,10 @@
 import datetime
 import json
+import logging
+import traceback
 from typing import Optional
 
+import aiohttp
 import aiomysql
 import aioredis
 
@@ -22,6 +25,69 @@ async def get_statistics(sql_pool: aiomysql.Pool, redis: aioredis.Redis, use_red
         return stats
 
     stats: dict = json.loads(bytes.decode(stats, encoding="utf-8"))
+    return stats
+
+
+async def get_chrome_statistics(redis: aioredis.Redis, use_redis: bool = True):
+    stats: Optional[bytes] = None
+
+    if use_redis:
+        stats = await redis.get("chromegle:chrome:statistics")
+
+    # Not cached (refresh every 120s)
+    if stats is None:
+        stats: dict = await _retrieve_web_stats()
+        await redis.set("chromegle:chrome:statistics", json.dumps(stats), ex=120)
+        return stats
+
+    stats: dict = json.loads(bytes.decode(stats, encoding="utf-8"))
+    return stats
+
+
+async def _retrieve_web_stats():
+    """
+    https://img.shields.io/chrome-web-store/users/gcbbaikjfjmidabapdnebofcmconhdbn.json
+    https://img.shields.io/chrome-web-store/rating/gcbbaikjfjmidabapdnebofcmconhdbn.json
+    https://img.shields.io/chrome-web-store/rating-count/gcbbaikjfjmidabapdnebofcmconhdbn.json
+    https://img.shields.io/chrome-web-store/v/gcbbaikjfjmidabapdnebofcmconhdbn.json
+    """
+
+    stats: dict = {
+        "users": {
+            "source": "https://img.shields.io/chrome-web-store/users/gcbbaikjfjmidabapdnebofcmconhdbn.json",
+            "value": None
+        },
+        "rating": {
+            "source": "https://img.shields.io/chrome-web-store/rating/gcbbaikjfjmidabapdnebofcmconhdbn.json",
+            "value": None
+        },
+        "rating-count": {
+            "source": "https://img.shields.io/chrome-web-store/rating-count/gcbbaikjfjmidabapdnebofcmconhdbn.json",
+            "value": None
+        },
+        "version": {
+            "source": "https://img.shields.io/chrome-web-store/v/gcbbaikjfjmidabapdnebofcmconhdbn.json",
+            "value": None
+        }
+    }
+
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(stats["users"]["source"]) as request:
+                stats["users"]["value"] = (await request.json())["value"]
+
+            async with session.get(stats["rating"]["source"]) as request:
+                stats["rating"]["value"] = (await request.json())["value"]
+
+            async with session.get(stats["rating-count"]["source"]) as request:
+                stats["rating-count"]["value"] = (await request.json())["value"]
+
+            async with session.get(stats["version"]["source"]) as request:
+                stats["version"]["value"] = (await request.json())["value"]
+
+    except:
+        logging.error(traceback.format_exc())
+
     return stats
 
 
