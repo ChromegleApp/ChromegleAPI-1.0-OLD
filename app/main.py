@@ -1,7 +1,8 @@
 import asyncio
+import json
 import os
 from asyncio import AbstractEventLoop
-from typing import Mapping, List, Optional
+from typing import Mapping, List, Optional, Union
 
 import aiomysql
 import aioredis
@@ -9,9 +10,10 @@ import uvicorn
 from fastapi import FastAPI, Depends
 from fastapi_limiter import FastAPILimiter
 from fastapi_limiter.depends import RateLimiter
+from starlette import status
 from starlette.middleware.cors import CORSMiddleware
-from starlette.requests import Request
-from starlette.responses import Response
+from starlette.requests import Request, ClientDisconnect
+from starlette.responses import JSONResponse
 
 import config
 from api.classify_image import NSFWResponse, NSFWPayload
@@ -21,8 +23,7 @@ from api.statsimage import StatsImageResponse
 from models.mysql import create_template
 from models.response import FilledResponse
 from utilities.misc import get_address
-from utilities.statistics.geo_auth import authorized
-from utilities.statistics.statistics import log_statistics, get_statistics, get_chrome_statistics
+from utilities.statistics.statistics import log_statistics, get_statistics, get_chrome_statistics, log_statistics_bulk
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
@@ -105,6 +106,27 @@ async def post_chromegle_stats(action: str, request: Request):
     return FilledResponse(status=200, message="Received Statistics").serialize()
 
 
+@app.post("/chromegle/stats/bulk", tags=['Chromegle'], dependencies=[Depends(RateLimiter(times=5, seconds=10))])
+async def post_chromegle_stats_bulk(request: Request):
+    try:
+        response: Union[dict, str] = await request.json()
+    except ClientDisconnect:
+        return JSONResponse(
+            status_code=500,
+            content={
+                "code": status.HTTP_500_INTERNAL_SERVER_ERROR,
+                "message": "Internal Server Error"}
+        )
+
+    if isinstance(response, str):
+        response = json.loads(response)
+
+    actions: List[List[str, int]] = response.get("stats", [])
+
+    await log_statistics_bulk(signature=get_address(request), actions=actions, sql_pool=app.sql_pool)
+    return FilledResponse(status=200, message="Received Statistics").serialize()
+
+
 @app.get("/chromegle/stats", tags=['Chromegle'])
 async def get_chromegle_stats(request: Request):
     stats: dict = await get_statistics(sql_pool=app.sql_pool, redis=app.redis, use_redis=True)
@@ -137,11 +159,8 @@ async def detect_nsfw(payload: NSFWPayload):
 
 
 @app.get("/omegle/geolocate/{address}", tags=['Omegle'], dependencies=[Depends(RateLimiter(times=1, seconds=1))], include_in_schema=False)
-async def geolocate_ip(address: str, request: Request):
-    if not await authorized(request, app.sql_pool):
-        return Response(status_code=403)
-
-    return (await GeolocateResponse(address, app.redis).complete()).serialize()
+async def geolocate_ip(address: str):
+    return (await GeolocateResponse(address, app.redis, app.sql_pool).complete()).serialize()
 
 
 @app.get("/omegle/stats", tags=['Omegle'], dependencies=[Depends(RateLimiter(times=3, seconds=2))])

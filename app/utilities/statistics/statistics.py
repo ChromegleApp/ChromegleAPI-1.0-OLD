@@ -2,7 +2,7 @@ import datetime
 import json
 import logging
 import traceback
-from typing import Optional
+from typing import Optional, List
 
 import aiohttp
 import aiomysql
@@ -10,6 +10,27 @@ import aioredis
 
 import config
 from utilities.statistics.statistics_sql import StatisticSQL
+
+
+async def user_exists(signature: str, sql_pool: aiomysql.Pool, redis: aioredis.Redis, use_redis: bool = True) -> bool:
+    existence: Optional[bytes] = None
+
+    if use_redis:
+        existence = await redis.get(f"chromegle:user:{signature}")
+
+    # Not cached (refresh every 120s)
+    if existence is None:
+        existence: int = await _user_exists(signature, sql_pool)
+        await redis.set(f"chromegle:user:{signature}", str(existence), ex=3600)
+        return bool(existence)
+
+    # Decode & return cached value
+    return bool(int(bytes.decode(existence, encoding="utf-8")))
+
+
+async def _user_exists(signature: str, sql_pool: aiomysql.Pool) -> int:
+    sql: StatisticSQL = StatisticSQL(sql_pool)
+    return await sql.chromegle_user_exists(signature)
 
 
 async def get_statistics(sql_pool: aiomysql.Pool, redis: aioredis.Redis, use_redis: bool = True):
@@ -123,7 +144,7 @@ async def _retrieve_statistics(sql_pool: aiomysql.Pool):
     }
 
 
-async def log_statistics(signature: str, action: str, sql_pool: aiomysql.Pool) -> bool:
+async def log_statistics(signature: str, action: str, sql_pool: aiomysql.Pool, timestamp: Optional[int] = None) -> bool:
     """
     Log statistics
 
@@ -141,5 +162,17 @@ async def log_statistics(signature: str, action: str, sql_pool: aiomysql.Pool) -
 
     sql: StatisticSQL = StatisticSQL(sql_pool)
 
-    await sql.insert_update_statistic(signature=signature, field_name=field_name)
+    await sql.insert_update_statistic(signature=signature, field_name=field_name, timestamp=timestamp)
     await sql.insert_update_tracking(stat_name=field_name)
+
+
+async def log_statistics_bulk(signature: str, actions: List[list], sql_pool: aiomysql.Pool) -> bool:
+    """
+    Log statistics
+
+    """
+
+    for action, timestamp in actions:
+        await log_statistics(signature=signature, action=action, sql_pool=sql_pool, timestamp=timestamp)
+
+    return True

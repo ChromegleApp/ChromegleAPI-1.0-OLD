@@ -8,12 +8,25 @@ from models.mysql import SQLEntryPoint, StatementEnum
 
 # noinspection SqlNoDataSourceInspection
 class StatisticStatements(StatementEnum):
+    CHROMEGLE_USER_EXISTS: str = (
+        """
+        SELECT
+        CASE WHEN EXISTS 
+        (
+            SELECT * FROM user_tracking WHERE address='%s'
+        )
+        THEN 1
+        ELSE 0
+        END
+        """
+    )
+
     INSERT_UPDATE_STATISTIC: str = (
         """
         INSERT INTO user_tracking (address) 
         VALUES('%s') 
         ON DUPLICATE KEY 
-        UPDATE %s=CURRENT_TIMESTAMP()
+        UPDATE %s=%s
         """
     )
 
@@ -89,12 +102,27 @@ class StatisticSQL:
         return await self.cursor.fetchone()
 
     @SQLEntryPoint
-    async def insert_update_statistic(self, signature: str, field_name: str):
+    async def insert_update_statistic(self, signature: str, field_name: str, timestamp: Optional[int] = None):
         """
         Insert a statistic into the database
 
         """
-        await self.cursor.execute(StatisticStatements.INSERT_UPDATE_STATISTIC % (signature, field_name))
+
+        await self.cursor.execute(StatisticStatements.INSERT_UPDATE_STATISTIC % (
+            signature,
+            field_name,
+            "CURRENT_TIMESTAMP()" if timestamp is None else "'" + datetime.datetime.utcfromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M:%S") + "'"
+        ))
+
+    @SQLEntryPoint
+    async def chromegle_user_exists(self, signature: str) -> int:
+        """
+        Check if a user is saved in chromegle
+
+        """
+
+        await self.cursor.execute(StatisticStatements.CHROMEGLE_USER_EXISTS % signature)
+        return (await self.cursor.fetchone())[0]
 
     @SQLEntryPoint
     async def insert_update_tracking(self, stat_name: str):
