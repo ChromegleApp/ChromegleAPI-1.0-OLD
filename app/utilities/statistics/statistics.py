@@ -171,8 +171,9 @@ async def log_statistics_bulk(signature: str, actions: List[list], sql_pool: aio
     Log statistics
 
     """
+    time: int = round(datetime.datetime.now().timestamp())
 
     for action, timestamp in actions:
-        await log_statistics(signature=signature, action=action, sql_pool=sql_pool, timestamp=timestamp)
+        await log_statistics(signature=signature, action=action, sql_pool=sql_pool, timestamp=max(min(time + 10, timestamp), time - 3600))
 
     return True
