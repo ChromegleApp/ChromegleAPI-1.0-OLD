@@ -55,7 +55,6 @@ class GeolocateResponse(AsyncResponse):
     async def complete(self) -> GeolocateResponse:
         # Retrieve from cache
         response: Optional[Dict] = await self.retrieve_cached(self.ip)
-        response = None
 
         # If not found in cache, get
         if response is None:
@@ -66,13 +65,13 @@ class GeolocateResponse(AsyncResponse):
             if lang is not None:
                 response["language"] = lang
 
-            # Check if a Chromegler
-            response["chromegler"] = await user_exists(hash_address(self.ip), self.mysql, self.redis, use_redis=True)
-
         # If not found
         if not response or type(response) != dict:
             self._payload, self._status, self._message = self._payload, 500, f"Failed to grab geolocation data for {self.ip}"
             return self
+
+        # Check if a Chromegler
+        response["chromegler"] = await user_exists(hash_address(self.ip), self.mysql, self.redis, use_redis=True)
 
         await self.update_cached(self.ip, response)
         self._payload, self._status, self._message = response, 200, f"Successfully retrieved geolocation data for {self.ip}"

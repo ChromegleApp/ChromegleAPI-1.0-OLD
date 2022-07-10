@@ -43,7 +43,7 @@ class StatisticStatements(StatementEnum):
         """
         SELECT address
         FROM user_tracking
-        WHERE %s >= TIMESTAMP(date_sub(now(), INTERVAL %s MINUTE))
+        WHERE %s >= TIMESTAMP(date_sub(UTC_TIMESTAMP(), INTERVAL %s MINUTE))
         """
     )
 
@@ -111,7 +111,7 @@ class StatisticSQL:
         await self.cursor.execute(StatisticStatements.INSERT_UPDATE_STATISTIC % (
             signature,
             field_name,
-            "CURRENT_TIMESTAMP()" if timestamp is None else "'" + datetime.datetime.utcfromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M:%S") + "'"
+            "UTC_TIMESTAMP()" if timestamp is None else "'" + datetime.datetime.utcfromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M:%S") + "'"
         ))
 
     @SQLEntryPoint
